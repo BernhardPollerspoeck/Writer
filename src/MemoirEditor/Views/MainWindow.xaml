@@ -1,0 +1,471 @@
+﻿<Window x:Class="MemoirEditor.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MemoirEditor.Views"
+        xmlns:conv="clr-namespace:MemoirEditor.Converters"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="Memoir Editor"
+        Height="800" Width="1200"
+        MinHeight="600" MinWidth="800"
+        Background="#f5f5f5">
+
+    <Window.Resources>
+        <conv:EqualityMultiConverter x:Key="EqualityMultiConverter" />
+    </Window.Resources>
+
+    <Grid>
+        <!-- Main horizontal split: Left (580px) | Divider (2px) | Right (580px) -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*" MinWidth="320"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="1*" MinWidth="320"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT SIDE -->
+        <Grid Grid.Column="0" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/> <!-- Book Preview (3/5) -->
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="2*"/> <!-- Chapter Tree (2/5) -->
+            </Grid.RowDefinitions>
+
+            <!-- 1. Book Preview (Top) -->
+            <Border Grid.Row="0" Background="#fafafa" BorderBrush="#e0e0e0" BorderThickness="1" CornerRadius="3" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0" Text="Vollansicht Buch (aufgeschlagene Seiten)"
+                               FontWeight="Bold" FontSize="14" Foreground="#333"
+                               HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                    <!-- Preview Area (WebView2) -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#ccc" BorderThickness="1" CornerRadius="2">
+                        <wv2:WebView2 x:Name="PdfPreviewWebView" />
+                    </Border>
+
+                    <!-- Navigation Controls -->
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Previous Button -->
+                        <Button Grid.Column="0" Width="30" Height="30"
+                                Background="#4a90e2" BorderBrush="White" BorderThickness="2"
+                                Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"
+                                Content="◀" Foreground="White" FontSize="12"
+                                Command="{Binding PreviewViewModel.PreviousPageCommand}"/>
+
+                        <!-- Page Counter -->
+                        <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="12" Foreground="#666">
+                            <Run Text="Seite "/>
+                            <Run Text="{Binding PreviewViewModel.CurrentPage, Mode=OneWay}"/>
+                            <Run Text=" von "/>
+                            <Run Text="{Binding PreviewViewModel.TotalPages, Mode=OneWay}"/>
+                        </TextBlock>
+
+                        <!-- Next Button -->
+                        <Button Grid.Column="2" Width="30" Height="30"
+                                Background="#4a90e2" BorderBrush="White" BorderThickness="2"
+                                Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"
+                                Content="▶" Foreground="White" FontSize="12"
+                                Command="{Binding PreviewViewModel.NextPageCommand}"/>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- 2. Chapter Tree (Bottom) -->
+            <Border Grid.Row="2" Background="#fafafa" BorderBrush="#e0e0e0" BorderThickness="1" CornerRadius="3" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header with buttons -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <TextBlock Text="Kapitel &amp; Blöcke" FontWeight="Bold" FontSize="14"
+                                   Foreground="#333" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="+ Kapitel" Background="#48bb78" Foreground="White"
+                                    BorderBrush="#38a169" Padding="8,4" Margin="0,0,5,0"
+                                    FontSize="9"
+                                    Command="{Binding ChapterTreeViewModel.AddChapterCommand}"
+                                    ToolTip="Neues Kapitel hinzufügen"/>
+                            <Button Content="+ Block" Background="#4299e1" Foreground="White"
+                                    BorderBrush="#3182ce" Padding="8,4" Margin="0,0,5,0"
+                                    FontSize="9"
+                                    Command="{Binding ChapterTreeViewModel.AddBlockCommand}"
+                                    ToolTip="Neuen Block zum ausgewählten Kapitel hinzufügen">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedChapter}" Value="{x:Null}">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Opacity" Value="0.5"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Content="🗑️ Kapitel" Background="#e53e3e" Foreground="White"
+                                    BorderBrush="#c53030" Padding="8,4" Margin="0,0,5,0"
+                                    FontSize="9"
+                                    Command="{Binding ChapterTreeViewModel.DeleteChapterCommand}"
+                                    ToolTip="Ausgewähltes Kapitel löschen"/>
+                            <Button Content="🗑️ Block" Background="#f56565" Foreground="White"
+                                    BorderBrush="#e53e3e" Padding="8,4"
+                                    FontSize="9"
+                                    Command="{Binding ChapterTreeViewModel.DeleteBlockCommand}"
+                                    ToolTip="Ausgewählten Block löschen">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedBlock}" Value="{x:Null}">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Opacity" Value="0.5"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Tree View -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="2">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding CurrentProject.Chapters}" Margin="5">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <!-- Chapter Header -->
+                                            <Border Cursor="Hand" Margin="0,0,0,5"
+                                                    MouseLeftButtonDown="Chapter_Click"
+                                                    AllowDrop="True"
+                                                    PreviewMouseLeftButtonDown="Chapter_PreviewMouseLeftButtonDown"
+                                                    PreviewMouseMove="Chapter_PreviewMouseMove"
+                                                    DragOver="Chapter_DragOver"
+                                                    Drop="Chapter_Drop">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#e8f4f8"/>
+                                                        <Setter Property="BorderBrush" Value="#b8d4e0"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Style.Triggers>
+                                                            <!-- Fix: use MultiBinding + converter and compare to True -->
+                                                            <DataTrigger Value="True">
+                                                                <DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource EqualityMultiConverter}">
+                                                                        <Binding RelativeSource="{RelativeSource AncestorType=Border}" Path="DataContext.Id"/>
+                                                                        <Binding RelativeSource="{RelativeSource AncestorType=ItemsControl}" Path="DataContext.SelectedChapter.Id"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                <Setter Property="Background" Value="#4a90e2"/>
+                                                                <Setter Property="BorderBrush" Value="#2c5282"/>
+                                                                <Setter Property="BorderThickness" Value="2"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Border CornerRadius="2" Padding="5">
+                                                    <Grid>
+                                                        <TextBlock FontWeight="Bold" FontSize="12">
+                                                            <Run Text="📖 "/>
+                                                            <Run Text="{Binding Title}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding EstimatedPages, StringFormat='({0:F1} Seiten)'}"
+                                                                   HorizontalAlignment="Right" FontSize="10" Foreground="#666"/>
+                                                    </Grid>
+                                                </Border>
+                                            </Border>
+
+                                            <!-- Chapter Blocks -->
+                                            <ItemsControl ItemsSource="{Binding Blocks}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#f7fafc" BorderBrush="#e0e6ed" BorderThickness="1"
+                                                                CornerRadius="2" Padding="5" Margin="20,0,0,3"
+                                                                Cursor="Hand" MouseLeftButtonDown="Block_Click"
+                                                                AllowDrop="True"
+                                                                PreviewMouseLeftButtonDown="Block_PreviewMouseLeftButtonDown"
+                                                                PreviewMouseMove="Block_PreviewMouseMove"
+                                                                DragOver="Block_DragOver"
+                                                                Drop="Block_Drop">
+                                                            <TextBlock Foreground="#4a5568" FontSize="11">
+                                                                <Run Text="📄 "/>
+                                                                <Run Text="{Binding Title}"/>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Drag & Drop hint -->
+                    <TextBlock Grid.Row="2" Text="Drag &amp; Drop zum Neu-Anordnen"
+                               HorizontalAlignment="Center" Margin="0,5,0,0"
+                               FontSize="11" Foreground="#666" FontStyle="Italic"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- DIVIDER -->
+        <Rectangle Grid.Column="1" Width="2" Fill="#d0d0d0"/>
+
+        <!-- RIGHT SIDE -->
+        <Grid Grid.Column="2" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Project Management -->
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/> <!-- Writing Area -->
+            </Grid.RowDefinitions>
+
+            <!-- 1. Project Management (Top) -->
+            <Border Grid.Row="0" Background="White" BorderBrush="#d0d0d0" BorderThickness="2"
+                    CornerRadius="5" Padding="10" Height="80">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1: File Operations -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                        <TextBlock Text="Projektverwaltung" FontWeight="Bold" FontSize="12"
+                                   Foreground="#333" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Neu" Background="#4a90e2" Foreground="White"
+                                BorderBrush="#2c5282" Padding="8,4" Margin="0,0,5,0" FontSize="10"
+                                Command="{Binding ProjectManagementViewModel.NewProjectCommand}"/>
+                        <Button Content="Laden" Background="#48bb78" Foreground="White"
+                                BorderBrush="#38a169" Padding="8,4" Margin="0,0,5,0" FontSize="10"
+                                Command="{Binding ProjectManagementViewModel.LoadProjectCommand}"/>
+                        <Button Content="Speichern" Background="#ed8936" Foreground="White"
+                                BorderBrush="#dd6b20" Padding="10,4" Margin="0,0,5,0" FontSize="10"
+                                Command="{Binding ProjectManagementViewModel.SaveProjectCommand}"/>
+                        <Button Content="Export" Background="#9f7aea" Foreground="White"
+                                BorderBrush="#805ad5" Padding="8,4" Margin="0,0,5,0" FontSize="10"
+                                Command="{Binding ProjectManagementViewModel.ExportToPdfCommand}"/>
+
+                        <Border Background="#f0fff4" BorderBrush="#9ae6b4" BorderThickness="1"
+                                CornerRadius="2" Padding="5,2" Margin="10,0,0,0">
+                            <TextBlock Text="✓ Auto" Foreground="#2f855a" FontSize="10"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Row 2: Page Settings -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal">
+                        <TextBlock Text="Seitenformat:" FontWeight="Bold" FontSize="11"
+                                   Foreground="#333" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="Breite:" FontSize="10" Foreground="#666"
+                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <TextBox Width="40" FontSize="9" Padding="2"
+                                 Text="{Binding ProjectManagementViewModel.PageWidth, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="mm" FontSize="9" Foreground="#666" Margin="2,0,5,0" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="Höhe:" FontSize="10" Foreground="#666"
+                                   VerticalAlignment="Center" Margin="5,0,3,0"/>
+                        <TextBox Width="40" FontSize="9" Padding="2"
+                                 Text="{Binding ProjectManagementViewModel.PageHeight, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="mm" FontSize="9" Foreground="#666" Margin="2,0,10,0" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="Ränder:" FontWeight="Bold" FontSize="11"
+                                   Foreground="#333" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="L:" FontSize="9" Foreground="#666" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox Width="30" FontSize="9" Padding="2" Margin="0,0,5,0"
+                                 Text="{Binding ProjectManagementViewModel.MarginLeft, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="R:" FontSize="9" Foreground="#666" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox Width="30" FontSize="9" Padding="2" Margin="0,0,5,0"
+                                 Text="{Binding ProjectManagementViewModel.MarginRight, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="O:" FontSize="9" Foreground="#666" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox Width="30" FontSize="9" Padding="2" Margin="0,0,5,0"
+                                 Text="{Binding ProjectManagementViewModel.MarginTop, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="U:" FontSize="9" Foreground="#666" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                        <TextBox Width="30" FontSize="9" Padding="2"
+                                 Text="{Binding ProjectManagementViewModel.MarginBottom, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 2. Writing Area (Bottom) -->
+            <Border Grid.Row="2" Background="White" BorderBrush="#d0d0d0" BorderThickness="2"
+                    CornerRadius="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Header -->
+                        <RowDefinition Height="Auto"/> <!-- Toolbar -->
+                        <RowDefinition Height="*"/> <!-- Editor -->
+                        <RowDefinition Height="Auto"/> <!-- Status Bar -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Header with Chapter Settings -->
+                    <Border Grid.Row="0" Background="#f8f9fa" BorderBrush="#e9ecef"
+                            BorderThickness="0,0,0,1" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Schreibfenster" FontWeight="Bold"
+                                       FontSize="14" Foreground="#333"/>
+                            <TextBlock Grid.Row="1" FontSize="12" Foreground="#666" Margin="0,2,0,8">
+                                <Run Text="{Binding SelectedChapter.Title, Mode=OneWay, FallbackValue='Kein Kapitel ausgewählt'}"/>
+                                <Run Text=" > "/>
+                                <Run Text="{Binding SelectedBlock.Title, Mode=OneWay, FallbackValue='Kein Block ausgewählt'}"/>
+                            </TextBlock>
+
+                            <!-- Chapter Settings -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedChapter}" Value="{x:Null}">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                                <Setter Property="Opacity" Value="0.5"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="Kapitel-Einstellungen:" FontWeight="Bold"
+                                           FontSize="11" Foreground="#333" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <CheckBox Content="Neue Seite" FontSize="10" Margin="0,0,10,0" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedChapter.Settings.StartsOnNewPage, FallbackValue=False, TargetNullValue=False}"/>
+                                <CheckBox Content="Immer rechts" FontSize="10" Margin="0,0,10,0" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedChapter.Settings.AlwaysRight, FallbackValue=False, TargetNullValue=False}"/>
+                                <CheckBox Content="Immer links" FontSize="10" Margin="0,0,10,0" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedChapter.Settings.AlwaysLeft, FallbackValue=False, TargetNullValue=False}"/>
+                                <TextBlock Text="Leerzeilen:" FontSize="10" Foreground="#666" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBox Width="30" FontSize="9" Padding="2"
+                                         Text="{Binding SelectedChapter.Settings.EmptyLinesFromPrevious, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#e0e0e0"
+                            BorderThickness="0,0,0,1" Padding="10,5">
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Formatting Buttons -->
+                            <Button Content="B" FontWeight="Bold" Width="30" Height="24"
+                                    Background="#f0f0f0" BorderBrush="#ccc" Margin="0,0,5,0"
+                                    Command="{Binding EditorViewModel.ToggleBoldCommand}"/>
+                            <Button Content="I" FontStyle="Italic" Width="30" Height="24"
+                                    Background="#f0f0f0" BorderBrush="#ccc" Margin="0,0,5,0"
+                                    Command="{Binding EditorViewModel.ToggleItalicCommand}"/>
+                            <Button Width="30" Height="24"
+                                    Background="#f0f0f0" BorderBrush="#ccc" Margin="0,0,10,0"
+                                    Command="{Binding EditorViewModel.ToggleUnderlineCommand}">
+                                <TextBlock Text="U" TextDecorations="Underline"/>
+                            </Button>
+
+                            <!-- Font Settings -->
+                            <ComboBox Width="80" Height="24" Margin="0,0,5,0"
+                                      SelectedValue="{Binding EditorViewModel.SelectedFont}"
+                                      SelectedValuePath="Content">
+                                <ComboBoxItem Content="Georgia"/>
+                                <ComboBoxItem Content="Arial"/>
+                                <ComboBoxItem Content="Times New Roman"/>
+                            </ComboBox>
+                            <ComboBox Width="50" Height="24" Margin="0,0,10,0"
+                                      SelectedValue="{Binding EditorViewModel.SelectedFontSize}"
+                                      SelectedValuePath="Tag">
+                                <ComboBoxItem Content="10pt" Tag="10"/>
+                                <ComboBoxItem Content="12pt" Tag="12"/>
+                                <ComboBoxItem Content="14pt" Tag="14"/>
+                            </ComboBox>
+
+                            <!-- Special Buttons -->
+                            <Button Content="🖼️ Bild" Background="#e8f5e8" Foreground="#2e7d32"
+                                    BorderBrush="#4caf50" Padding="8,4" Margin="0,0,5,0" FontSize="10"
+                                    Command="{Binding EditorViewModel.InsertImageCommand}"/>
+                            <Button Content="📄 Seite" Background="#fff3e0" Foreground="#e65100"
+                                    BorderBrush="#ff9800" Padding="8,4" Margin="0,0,5,0" FontSize="10"
+                                    Command="{Binding EditorViewModel.InsertPageBreakCommand}"/>
+                            <Button Content="⚙️ Einstellungen" Background="#f3e5f5" Foreground="#7b1fa2"
+                                    BorderBrush="#9c27b0" Padding="8,4" FontSize="10"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Text Editor -->
+                    <Border Grid.Row="2" Background="White" Padding="10">
+                        <RichTextBox x:Name="ContentEditor"
+                                     BorderThickness="0"
+                                     FontFamily="Georgia"
+                                     FontSize="12"
+                                     VerticalScrollBarVisibility="Auto"
+                                     AcceptsReturn="True"
+                                     AcceptsTab="True"
+                                     TextChanged="ContentEditor_TextChanged">
+                        </RichTextBox>
+                    </Border>
+
+                    <!-- Status Bar -->
+                    <Border Grid.Row="3" Background="#f8f9fa" BorderBrush="#e9ecef"
+                            BorderThickness="0,1,0,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock FontSize="11" Foreground="#666">
+                                <Run Text="Wörter: "/>
+                                <Run Text="{Binding EditorViewModel.WordCount, Mode=OneWay}"/>
+                                <Run Text=" | Zeichen: "/>
+                                <Run Text="{Binding EditorViewModel.CharacterCount, Mode=OneWay}"/>
+                                <Run Text=" | Bilder: "/>
+                                <Run Text="{Binding SelectedBlock.Images.Count, Mode=OneWay, FallbackValue=0}"/>
+                            </TextBlock>
+                            <TextBlock FontSize="11" Foreground="#666">
+                                <Run Text="Geschätzte Seiten: "/>
+                                <Run Text="{Binding SelectedChapter.EstimatedPages, StringFormat='{}{0:F1}', Mode=OneWay, FallbackValue=0}"/>
+                                <Run Text=" | Letztes Speichern: "/>
+                                <Run Text="{Binding ProjectManagementViewModel.LastSaveTime, StringFormat='HH:mm:ss', Mode=OneWay, FallbackValue='nie'}"/>
+                            </TextBlock>
+                            <TextBlock FontSize="11" Foreground="#666">
+                                <Run Text="Schriftart: "/>
+                                <Run Text="{Binding CurrentProject.GlobalSettings.Font, Mode=OneWay}"/>
+                                <Run Text=" "/>
+                                <Run Text="{Binding CurrentProject.GlobalSettings.FontSize, Mode=OneWay}"/>
+                                <Run Text="pt | Zeilenhöhe: "/>
+                                <Run Text="{Binding CurrentProject.GlobalSettings.LineHeight, Mode=OneWay}"/>
+                            </TextBlock>
+                            <TextBlock FontSize="11" Foreground="#666">
+                                <Run Text="Format: "/>
+                                <Run Text="{Binding CurrentProject.Metadata.PageFormat.Width, Mode=OneWay}"/>
+                                <Run Text="x"/>
+                                <Run Text="{Binding CurrentProject.Metadata.PageFormat.Height, Mode=OneWay}"/>
+                                <Run Text="mm | Ränder: L:"/>
+                                <Run Text="{Binding CurrentProject.Metadata.Margins.Left, Mode=OneWay}"/>
+                                <Run Text=" R:"/>
+                                <Run Text="{Binding CurrentProject.Metadata.Margins.Right, Mode=OneWay}"/>
+                                <Run Text=" O:"/>
+                                <Run Text="{Binding CurrentProject.Metadata.Margins.Top, Mode=OneWay}"/>
+                                <Run Text=" U:"/>
+                                <Run Text="{Binding CurrentProject.Metadata.Margins.Bottom, Mode=OneWay}"/>
+                                <Run Text="mm"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

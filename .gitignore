@@ -416,3 +416,8 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Memoir Editor specific
+*.memoir
+*.memoir.backup_*
+memoir_preview_*.pdf
