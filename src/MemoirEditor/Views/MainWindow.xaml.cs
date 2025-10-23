@@ -83,6 +83,9 @@ public partial class MainWindow : Window
 
             // Pass the WebView2 control to the service
             _webViewService.SetWebView(PdfPreviewWebView);
+
+            // Trigger initial preview render now that WebView is ready
+            _viewModel.PreviewViewModel.RequestRender(_viewModel.CurrentProject);
         }
         catch (Exception ex)
         {
@@ -349,4 +352,15 @@ public partial class MainWindow : Window
     }
 
     #endregion
+
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        Application.Current.Shutdown();
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show("Memoir Editor\n\nEin Editor für Memoiren und Bücher.\n\nVersion 1.0",
+            "Über Memoir Editor", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
 }

@@ -17,6 +17,126 @@ public class QuestPdfRenderer : IQuestPdfRenderer
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
+    /// <summary>
+    /// Convert hex color string to QuestPDF color
+    /// </summary>
+    private string HexToQuestPdfColor(string hexColor)
+    {
+        // Remove # if present
+        if (hexColor.StartsWith("#"))
+            hexColor = hexColor.Substring(1);
+
+        // Ensure it's 6 characters
+        if (hexColor.Length != 6)
+            return "#000000";
+
+        return $"#{hexColor}";
+    }
+
+    /// <summary>
+    /// Render rich text from FlowDocument XAML
+    /// </summary>
+    private void RenderRichText(QuestPDF.Infrastructure.IContainer container, string xamlContent, double lineHeight)
+    {
+        try
+        {
+            using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(xamlContent)))
+            {
+                var doc = (System.Windows.Documents.FlowDocument)System.Windows.Markup.XamlReader.Load(stream);
+
+                container.Text(text =>
+                {
+                    text.DefaultTextStyle(x => x.LineHeight((float)lineHeight));
+
+                    foreach (var block in doc.Blocks)
+                    {
+                        if (block is System.Windows.Documents.Paragraph paragraph)
+                        {
+                            RenderParagraph(text, paragraph);
+                        }
+                    }
+                });
+            }
+        }
+        catch
+        {
+            // Fallback to plain text if parsing fails
+            container.Text(xamlContent);
+        }
+    }
+
+    private void RenderParagraph(QuestPDF.Fluent.TextDescriptor text, System.Windows.Documents.Paragraph paragraph)
+    {
+        foreach (var inline in paragraph.Inlines)
+        {
+            RenderInline(text, inline);
+        }
+
+        // Add line break after paragraph
+        text.Line(string.Empty);
+    }
+
+    private void RenderInline(QuestPDF.Fluent.TextDescriptor text, System.Windows.Documents.Inline inline)
+    {
+        if (inline is System.Windows.Documents.Run run)
+        {
+            var span = text.Span(run.Text);
+
+            // Apply font family
+            if (run.FontFamily != null)
+            {
+                span.FontFamily(run.FontFamily.Source);
+            }
+
+            // Apply font size
+            if (!double.IsNaN(run.FontSize))
+            {
+                span.FontSize((float)run.FontSize);
+            }
+
+            // Apply font weight (bold)
+            if (run.FontWeight == System.Windows.FontWeights.Bold)
+            {
+                span.Bold();
+            }
+
+            // Apply font style (italic)
+            if (run.FontStyle == System.Windows.FontStyles.Italic)
+            {
+                span.Italic();
+            }
+
+            // Apply text decorations (underline)
+            if (run.TextDecorations != null && run.TextDecorations.Count > 0)
+            {
+                foreach (var decoration in run.TextDecorations)
+                {
+                    if (decoration.Location == System.Windows.TextDecorationLocation.Underline)
+                    {
+                        // QuestPDF doesn't have native underline, but we can note it
+                        // For now, we'll skip underline in PDF
+                    }
+                }
+            }
+
+            // Apply foreground color
+            if (run.Foreground is System.Windows.Media.SolidColorBrush brush)
+            {
+                var color = brush.Color;
+                var hexColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                span.FontColor(hexColor);
+            }
+        }
+        else if (inline is System.Windows.Documents.Span span)
+        {
+            // Recursively render spans
+            foreach (var childInline in span.Inlines)
+            {
+                RenderInline(text, childInline);
+            }
+        }
+    }
+
     public async Task<byte[]> GeneratePdfAsync(MemoirProject project, CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
@@ -79,50 +199,37 @@ public class QuestPdfRenderer : IQuestPdfRenderer
                                 column.Item().PaddingBottom((float)project.GlobalSettings.LineHeight * (float)project.GlobalSettings.FontSize);
                             }
 
-                            // Chapter title with underline
-                            column.Item().Text(chapter.Title)
-                                .FontSize(16)
-                                .Bold()
-                                .FontFamily(project.GlobalSettings.Font);
+                            // Chapter title with underline (if enabled)
+                            if (chapter.ShowTitle)
+                            {
+                                column.Item().Text(chapter.Title)
+                                    .FontSize((float)chapter.TitleFormatting.FontSize)
+                                    .Bold()
+                                    .FontFamily(chapter.TitleFormatting.Font)
+                                    .FontColor(HexToQuestPdfColor(chapter.TitleFormatting.Color));
 
-                            column.Item().LineHorizontal(1).LineColor(Colors.Black);
-                            column.Item().PaddingBottom(10);
+                                column.Item().LineHorizontal(1).LineColor(Colors.Black);
+                                column.Item().PaddingBottom(10);
+                            }
 
                             // Render blocks
                             foreach (var block in chapter.Blocks)
                             {
-                                // Block title
-                                if (!string.IsNullOrEmpty(block.Title))
+                                // Block title (if enabled)
+                                if (block.ShowTitle && !string.IsNullOrEmpty(block.Title))
                                 {
                                     column.Item().Text(block.Title)
-                                        .FontSize(14)
+                                        .FontSize((float)block.TitleFormatting.FontSize)
                                         .SemiBold()
-                                        .FontFamily(project.GlobalSettings.Font);
+                                        .FontFamily(block.TitleFormatting.Font)
+                                        .FontColor(HexToQuestPdfColor(block.TitleFormatting.Color));
                                     column.Item().PaddingBottom(5);
                                 }
 
-                                // Block content - process page breaks
+                                // Block content - render with rich text formatting
                                 if (!string.IsNullOrEmpty(block.Content))
                                 {
-                                    // Extract plain text from XAML if needed
                                     var content = block.Content;
-                                    if (content.Contains("<FlowDocument"))
-                                    {
-                                        // Extract text from XAML FlowDocument
-                                        try
-                                        {
-                                            using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(content)))
-                                            {
-                                                var doc = (System.Windows.Documents.FlowDocument)System.Windows.Markup.XamlReader.Load(stream);
-                                                var range = new System.Windows.Documents.TextRange(doc.ContentStart, doc.ContentEnd);
-                                                content = range.Text;
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            // Fallback: use as-is
-                                        }
-                                    }
 
                                     // Split by page break markers
                                     var parts = content.Split(new[] { "<!-- PAGE_BREAK -->" }, StringSplitOptions.None);
@@ -131,10 +238,19 @@ public class QuestPdfRenderer : IQuestPdfRenderer
                                     {
                                         if (!string.IsNullOrWhiteSpace(parts[i]))
                                         {
-                                            column.Item().Text(parts[i].Trim())
-                                                .FontSize((float)project.GlobalSettings.FontSize)
-                                                .LineHeight((float)project.GlobalSettings.LineHeight)
-                                                .FontFamily(project.GlobalSettings.Font);
+                                            if (parts[i].Contains("<FlowDocument"))
+                                            {
+                                                // Render as rich text with per-character formatting
+                                                RenderRichText(column.Item(), parts[i], project.GlobalSettings.LineHeight);
+                                            }
+                                            else
+                                            {
+                                                // Plain text fallback
+                                                column.Item().Text(parts[i].Trim())
+                                                    .FontSize((float)project.GlobalSettings.FontSize)
+                                                    .LineHeight((float)project.GlobalSettings.LineHeight)
+                                                    .FontFamily(project.GlobalSettings.Font);
+                                            }
                                         }
 
                                         // Insert page break if not last part

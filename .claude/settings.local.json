@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(dotnet build:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(powershell -Command \"Get-Content ''C:\\Temp_Data\\te\\Writer\\src\\MemoirEditor\\Views\\MainWindow.xaml'' | Select-Object -Last 5\")"
     ],
     "deny": [],
     "ask": []

@@ -5,6 +5,6 @@ namespace MemoirEditor.Models;
 /// </summary>
 public class PageFormat
 {
-    public double Width { get; set; } = 148; // A5 width in mm
-    public double Height { get; set; } = 210; // A5 height in mm
+    public double Width { get; set; } = 210; // A4 width in mm
+    public double Height { get; set; } = 297; // A4 height in mm
 }

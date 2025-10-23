@@ -87,24 +87,84 @@ public partial class MainViewModel : ObservableObject
             }
         };
 
-        // Trigger initial preview render
-        PreviewViewModel.RequestRender(_currentProject);
+        // Note: Initial preview render will be triggered once WebView2 is initialized
     }
 
-    partial void OnSelectedChapterChanged(Chapter? value)
+    partial void OnSelectedChapterChanged(Chapter? oldValue, Chapter? newValue)
     {
-        if (value != null && value.Blocks.Count > 0)
+        // Unsubscribe from old chapter
+        if (oldValue != null)
         {
-            SelectedBlock = value.Blocks[0];
+            oldValue.PropertyChanged -= OnChapterPropertyChanged;
+            if (oldValue.TitleFormatting != null)
+            {
+                oldValue.TitleFormatting.PropertyChanged -= OnFormattingChanged;
+            }
+        }
+
+        // Subscribe to new chapter
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnChapterPropertyChanged;
+            if (newValue.TitleFormatting != null)
+            {
+                newValue.TitleFormatting.PropertyChanged += OnFormattingChanged;
+            }
+
+            if (newValue.Blocks.Count > 0)
+            {
+                SelectedBlock = newValue.Blocks[0];
+            }
         }
     }
 
-    partial void OnSelectedBlockChanged(Block? value)
+    partial void OnSelectedBlockChanged(Block? oldValue, Block? newValue)
     {
-        if (value != null)
+        // Unsubscribe from old block
+        if (oldValue != null)
         {
-            EditorViewModel.LoadBlock(value);
+            oldValue.PropertyChanged -= OnBlockPropertyChanged;
+            if (oldValue.TitleFormatting != null)
+            {
+                oldValue.TitleFormatting.PropertyChanged -= OnFormattingChanged;
+            }
         }
+
+        // Subscribe to new block
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnBlockPropertyChanged;
+            if (newValue.TitleFormatting != null)
+            {
+                newValue.TitleFormatting.PropertyChanged += OnFormattingChanged;
+            }
+
+            EditorViewModel.LoadBlock(newValue);
+        }
+    }
+
+    private void OnChapterPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Trigger preview update when chapter properties change (like ShowTitle)
+        if (e.PropertyName == nameof(Chapter.ShowTitle) || e.PropertyName == nameof(Chapter.Title))
+        {
+            PreviewViewModel.RequestRender(CurrentProject);
+        }
+    }
+
+    private void OnBlockPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Trigger preview update when block properties change (like ShowTitle)
+        if (e.PropertyName == nameof(Block.ShowTitle) || e.PropertyName == nameof(Block.Title))
+        {
+            PreviewViewModel.RequestRender(CurrentProject);
+        }
+    }
+
+    private void OnFormattingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Trigger preview update when formatting changes
+        PreviewViewModel.RequestRender(CurrentProject);
     }
 
     [RelayCommand]

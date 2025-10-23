@@ -22,7 +22,8 @@ public class WebViewService : IWebViewService
     {
         if (_webView == null)
         {
-            throw new InvalidOperationException("WebView2 control has not been set. Call SetWebView first.");
+            // WebView2 not set yet - silently ignore
+            return;
         }
 
         // Create temporary file
@@ -33,33 +34,40 @@ public class WebViewService : IWebViewService
         // Navigate to PDF on UI thread
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            _webView.CoreWebView2.Navigate(new Uri(tempPath).AbsoluteUri);
+            // Check if CoreWebView2 is ready on the UI thread
+            if (_webView.CoreWebView2 != null)
+            {
+                _webView.CoreWebView2.Navigate(new Uri(tempPath).AbsoluteUri);
+            }
         });
     }
 
     public async Task NavigateToPageAsync(int pageNumber)
     {
-        if (_webView == null || _webView.CoreWebView2 == null)
+        if (_webView == null)
             return;
 
         try
         {
-            // Navigate to specific page using PDF fragment identifier
-            // Format: file.pdf#page=N
-            var currentSource = _webView.CoreWebView2.Source;
-            if (!string.IsNullOrEmpty(currentSource))
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                // Remove existing fragment if any
-                var baseUrl = currentSource.Split('#')[0];
+                // Check if CoreWebView2 is ready on the UI thread
+                if (_webView.CoreWebView2 == null)
+                    return;
 
-                // Add page fragment
-                var newUrl = $"{baseUrl}#page={pageNumber}";
-
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                // Navigate to specific page using PDF fragment identifier
+                // Format: file.pdf#page=N
+                var currentSource = _webView.CoreWebView2.Source;
+                if (!string.IsNullOrEmpty(currentSource))
                 {
+                    // Remove existing fragment if any
+                    var baseUrl = currentSource.Split('#')[0];
+
+                    // Add page fragment
+                    var newUrl = $"{baseUrl}#page={pageNumber}";
                     _webView.CoreWebView2.Navigate(newUrl);
-                });
-            }
+                }
+            });
         }
         catch (Exception ex)
         {

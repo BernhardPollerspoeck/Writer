@@ -19,22 +19,22 @@ public partial class ProjectManagementViewModel : ObservableObject
     private MemoirProject? _currentProject;
 
     [ObservableProperty]
-    private double _pageWidth = 148;
+    private double _pageWidth = 210;
 
     [ObservableProperty]
-    private double _pageHeight = 210;
+    private double _pageHeight = 297;
 
     [ObservableProperty]
-    private double _marginLeft = 20;
+    private double _marginLeft = 25;
 
     [ObservableProperty]
-    private double _marginRight = 15;
+    private double _marginRight = 25;
 
     [ObservableProperty]
     private double _marginTop = 25;
 
     [ObservableProperty]
-    private double _marginBottom = 20;
+    private double _marginBottom = 25;
 
     [ObservableProperty]
     private bool _autoSaveEnabled = true;
@@ -167,25 +167,43 @@ public partial class ProjectManagementViewModel : ObservableObject
         {
             if (string.IsNullOrEmpty(CurrentProject.FilePath))
             {
-                // Show Save As dialog
-                var dialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "Memoir Files (*.memoir)|*.memoir|All Files (*.*)|*.*",
-                    DefaultExt = ".memoir",
-                    FileName = "Neues Memoir.memoir"
-                };
-
-                if (dialog.ShowDialog() == true)
-                {
-                    await _projectRepository.SaveAsync(CurrentProject, dialog.FileName);
-                    LastSaveTime = DateTime.Now;
-                    ErrorHandler.ShowInfo("Projekt erfolgreich gespeichert.", "Speichern");
-                }
+                // No file path, use Save As
+                await SaveAsProjectAsync();
             }
             else
             {
                 await _projectRepository.SaveAsync(CurrentProject, CurrentProject.FilePath);
                 LastSaveTime = DateTime.Now;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorHandler.HandleException(ex, "Fehler beim Speichern des Projekts");
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveAsProjectAsync()
+    {
+        if (CurrentProject == null)
+            return;
+
+        try
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Memoir Files (*.memoir)|*.memoir|All Files (*.*)|*.*",
+                DefaultExt = ".memoir",
+                FileName = string.IsNullOrEmpty(CurrentProject.FilePath)
+                    ? "Neues Memoir.memoir"
+                    : System.IO.Path.GetFileName(CurrentProject.FilePath)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                await _projectRepository.SaveAsync(CurrentProject, dialog.FileName);
+                LastSaveTime = DateTime.Now;
+                ErrorHandler.ShowInfo("Projekt erfolgreich gespeichert.", "Speichern");
             }
         }
         catch (Exception ex)
